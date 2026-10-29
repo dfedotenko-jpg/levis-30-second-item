@@ -33,7 +33,7 @@ table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px
 </div>
 <div class="panel">
 <b>Правила расчёта</b>
-<div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по описанию скидки в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с акционным описанием скидки −30% считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Расчёт ведётся по чекам, без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
+<div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по колонке «Описание скидки» в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с описанием «На вторую единицу 30%» считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Расчёт ведётся по чекам, без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
 </div>
 <div id="results" class="hidden">
 <div class="cards">
@@ -62,20 +62,21 @@ $('run').onclick=async()=>{
  try{
  const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
  if(!rows.length)throw Error('Файл пустой');
- const r0=rows[0], store=hdr(r0,['Магазин']), date=hdr(r0,['Дата продажи']), art=hdr(r0,['Артикул']), season=hdr(r0,['Сезон','Сезонная группа']), qty=hdr(r0,['Кол','Количество']), price=hdr(r0,['Цена']), sum=hdr(r0,['Сумма']), sumDisc=hdr(r0,['Сумма скидки']), manual=hdr(r0,['Ручная Скидка']), disc=hdr(r0,['Скидка']);
- let missing=[]; if(!store)missing.push('Магазин');if(!date)missing.push('Дата продажи');if(!art)missing.push('Артикул');if(!season)missing.push('Сезон');if(!qty)missing.push('Кол/Количество');if(!price&&!sum)missing.push('Цена/Сумма');
+ const r0=rows[0], store=hdr(r0,['Магазин']), date=hdr(r0,['Дата продажи']), art=hdr(r0,['Артикул']), qty=hdr(r0,['Кол','Количество']), descr=hdr(r0,['Описание скидки','Описание Скидки','Описание скидок']);
+ let missing=[]; if(!store)missing.push('Магазин');if(!date)missing.push('Дата продажи');if(!art)missing.push('Артикул');if(!qty)missing.push('Кол/Количество');if(!descr)missing.push('Описание скидки');
  if(missing.length)throw Error('Не найдены колонки: '+missing.join(', '));
  const own=ownSet(), checks=new Map();
- for(const r of rows){let q=num(r[qty]);if(q<=0)continue;let st=norm(r[store]),dt=r[date];if(!st||!dt)continue;let key=st+'|'+String(dt);let arr=checks.get(key)||[];let unitPrice=Math.abs(num(r[price]))||Math.abs(num(r[sum]))/Math.max(1,Math.abs(q));let pct=discountPct(r,price,sumDisc,manual,disc);
- for(let i=0;i<Math.round(q);i++)arr.push({store:st,season:norm(r[season]),art:norm(r[art]).toLowerCase(),price:unitPrice,pct}); checks.set(key,arr)}
+ for(const r of rows){let q=num(r[qty]);if(q<=0)continue;let st=norm(r[store]),dt=r[date];if(!st||!dt)continue;let key=st+'|'+String(dt);let ch=checks.get(key)||{store:st,units:0,promo:0};
+   ch.units+=Math.max(0,Math.round(q));
+   const a=norm(r[art]).toLowerCase(), d=norm(r[descr]).toLowerCase().replace(/\\s+/g,' ').trim();
+   if(!own.has(a) && d.includes('на вторую единицу 30%')) ch.promo+=Math.max(0,Math.round(q));
+   checks.set(key,ch);
+ }
  let by={},tot={c2:0,pairs:0,promo:0,miss:0};
- for(const items0 of checks.values()){let items=items0.filter(x=>seasonOK(x.season));if(items.length<2)continue;tot.c2++;let st=items[0].store;by[st]??={c2:0,pairs:0,promo:0,miss:0};by[st].c2++;
- // Greedy pairing: choose cheapest eligible second, then cheapest valid first priced >= second. SS27 never second.
- let pool=[...items]; while(pool.length>=2){let seconds=pool.filter(canSecond).sort((a,b)=>a.price-b.price);if(!seconds.length)break;let second=null,first=null;
- for(const s of seconds){let candidates=pool.filter(x=>x!==s&&x.price>=s.price);if(candidates.length){second=s;first=candidates.sort((a,b)=>a.price-b.price)[0];break}}
- if(!second)break; pool.splice(pool.indexOf(second),1);pool.splice(pool.indexOf(first),1);tot.pairs++;by[st].pairs++;
- let own30=own.has(second.art), got30=Math.abs(second.pct-30)<=1.2; if(got30&&!own30){tot.promo++;by[st].promo++}else{tot.miss++;by[st].miss++}
- }}
+ for(const ch of checks.values()){if(ch.units<2)continue;tot.c2++;let st=ch.store;by[st]??={c2:0,pairs:0,promo:0,miss:0};by[st].c2++;
+   tot.pairs++;by[st].pairs++;
+   if(ch.promo>0){tot.promo++;by[st].promo++;}else{tot.miss++;by[st].miss++;}
+ }
  $('c2').textContent=tot.c2;$('pairs').textContent=tot.pairs;$('promo').textContent=tot.promo;$('miss').textContent=tot.miss;$('eff').textContent=(tot.pairs?tot.promo/tot.pairs*100:0).toFixed(1)+'%';
  $('body').innerHTML=Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([s,v])=>'<tr><td>'+s+'</td><td>'+v.c2+'</td><td>'+v.pairs+'</td><td>'+v.promo+'</td><td>'+v.miss+'</td><td>'+(v.pairs?v.promo/v.pairs*100:0).toFixed(1)+'%</td></tr>').join('');
  $('results').classList.remove('hidden');$('msg').innerHTML='<div class="ok">Расчёт выполнен. Проверьте список собственных −30% перед финальным использованием результата.</div>';
