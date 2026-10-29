@@ -33,7 +33,7 @@ table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px
 </div>
 <div class="panel">
 <b>Правила расчёта</b>
-<div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по колонке «Описание скидки» в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с описанием «На вторую единицу 30%» считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Расчёт ведётся по чекам, без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
+<div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по колонке «Описание скидки» в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с описанием «На вторую единицу 30%» считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Продажа сертификатов, услуги ушива/подшива и пакеты не учитываются ни в количестве чеков, ни в количестве единиц. Расчёт ведётся без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
 </div>
 <div id="results" class="hidden">
 <div class="cards" style="grid-template-columns:repeat(4,1fr)">
@@ -61,11 +61,15 @@ $('run').onclick=async()=>{
  try{
  const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
  if(!rows.length)throw Error('Файл пустой');
- const r0=rows[0], store=hdr(r0,['Магазин']), date=hdr(r0,['Дата продажи']), art=hdr(r0,['Артикул']), qty=hdr(r0,['Кол','Количество']), descr=hdr(r0,['Описание скидки','Описание Скидки','Описание скидок']);
+ const r0=rows[0], store=hdr(r0,['Магазин']), date=hdr(r0,['Дата продажи']), art=hdr(r0,['Артикул']), name=hdr(r0,['Наименование','Номенклатура','Товар','Название']), qty=hdr(r0,['Кол','Количество']), descr=hdr(r0,['Описание скидки','Описание Скидки','Описание скидок']);
  let missing=[]; if(!store)missing.push('Магазин');if(!date)missing.push('Дата продажи');if(!art)missing.push('Артикул');if(!qty)missing.push('Кол/Количество');if(!descr)missing.push('Описание скидки');
  if(missing.length)throw Error('Не найдены колонки: '+missing.join(', '));
  const own=ownSet(), checks=new Map();
- for(const r of rows){let q=num(r[qty]);if(q<=0)continue;let st=norm(r[store]),dt=r[date];if(!st||!dt)continue;let key=st+'|'+String(dt);let ch=checks.get(key)||{store:st,units:0,promo:0};
+ for(const r of rows){let q=num(r[qty]);if(q<=0)continue;
+   let itemText=(norm(r[name])+' '+norm(r[art])).toLowerCase().replace(/ё/g,'е');
+   // Не считаем сертификаты, услуги ушива/подшива и пакеты ни в чеках, ни в единицах.
+   if(/сертификат|gift\s*card|giftcard|ушив|ушивк|подшив|подшивк|tailor\s*service|пакет|shopping\s*bag/.test(itemText))continue;
+   let st=norm(r[store]),dt=r[date];if(!st||!dt)continue;let key=st+'|'+String(dt);let ch=checks.get(key)||{store:st,units:0,promo:0};
    ch.units+=Math.max(0,Math.round(q));
    const a=norm(r[art]).toLowerCase(), d=norm(r[descr]).toLowerCase().replace(/\\s+/g,' ').trim();
    if(!own.has(a) && d.includes('на вторую единицу 30%')) ch.promo+=Math.max(0,Math.round(q));
