@@ -31,6 +31,10 @@ table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px
 <div class="actions"><button id="run">Рассчитать</button><button class="secondary" id="clear">Очистить</button></div>
 <div id="msg"></div>
 </div>
+<div class="panel">
+<b>Правила расчёта</b>
+<div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по описанию скидки в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с акционным описанием скидки −30% считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Расчёт ведётся по чекам, без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
+</div>
 <div id="results" class="hidden">
 <div class="cards">
 <div class="card"><span>Чеков с 2+ единицами</span><b id="c2">0</b></div>
