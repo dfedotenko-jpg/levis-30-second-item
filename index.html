@@ -36,14 +36,13 @@ table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px
 <div class="note" style="margin-top:8px">Чек определяется по магазину и точному времени продажи. Эффективность акции рассчитывается по колонке «Описание скидки» в строках реализации: после исключения артикулов, у которых уже действует собственная скидка −30%, позиции с описанием «На вторую единицу 30%» считаются реализацией по акции. Артикулы с собственной скидкой −30% не учитываются как результат акции. Расчёт ведётся по чекам, без привязки к сезонным группам, поэтому его можно использовать для разных брендов.</div>
 </div>
 <div id="results" class="hidden">
-<div class="cards">
-<div class="card"><span>Чеков с 2+ единицами</span><b id="c2">0</b></div>
-<div class="card"><span>Потенциальных пар</span><b id="pairs">0</b></div>
-<div class="card"><span>Пар с −30% по акции</span><b id="promo">0</b></div>
-<div class="card"><span>Не сработало / проверить</span><b id="miss">0</b></div>
+<div class="cards" style="grid-template-columns:repeat(4,1fr)">
+<div class="card"><span>Общее количество чеков</span><b id="checks">0</b></div>
+<div class="card"><span>Общее количество единиц</span><b id="units">0</b></div>
+<div class="card"><span>Единиц «На вторую единицу 30%»</span><b id="promoUnits">0</b></div>
 <div class="card"><span>Эффективность</span><b id="eff">0%</b></div>
 </div>
-<div class="panel"><div class="wrap"><table><thead><tr><th>Магазин</th><th>Чеков 2+</th><th>Потенц. пар</th><th>−30% по акции</th><th>Проверить</th><th>Эффективность</th></tr></thead><tbody id="body"></tbody></table></div></div>
+<div class="panel"><div class="wrap"><table><thead><tr><th>Магазин</th><th>Чеков</th><th>Единиц</th><th>Единиц −30% на вторую</th><th>Эффективность</th></tr></thead><tbody id="body"></tbody></table></div></div>
 </div>
 <script>
 const $=id=>document.getElementById(id), norm=x=>String(x??'').trim(), num=x=>{if(typeof x==='number')return x;let s=String(x??'').replace(/\s/g,'').replace(',','.');return Number(s)||0};
@@ -72,13 +71,14 @@ $('run').onclick=async()=>{
    if(!own.has(a) && d.includes('на вторую единицу 30%')) ch.promo+=Math.max(0,Math.round(q));
    checks.set(key,ch);
  }
- let by={},tot={c2:0,pairs:0,promo:0,miss:0};
- for(const ch of checks.values()){if(ch.units<2)continue;tot.c2++;let st=ch.store;by[st]??={c2:0,pairs:0,promo:0,miss:0};by[st].c2++;
-   tot.pairs++;by[st].pairs++;
-   if(ch.promo>0){tot.promo++;by[st].promo++;}else{tot.miss++;by[st].miss++;}
+ let by={},tot={checks:0,units:0,promoUnits:0};
+ for(const ch of checks.values()){
+   tot.checks++; tot.units+=ch.units; tot.promoUnits+=ch.promo;
+   let st=ch.store; by[st]??={checks:0,units:0,promoUnits:0};
+   by[st].checks++; by[st].units+=ch.units; by[st].promoUnits+=ch.promo;
  }
- $('c2').textContent=tot.c2;$('pairs').textContent=tot.pairs;$('promo').textContent=tot.promo;$('miss').textContent=tot.miss;$('eff').textContent=(tot.pairs?tot.promo/tot.pairs*100:0).toFixed(1)+'%';
- $('body').innerHTML=Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([s,v])=>'<tr><td>'+s+'</td><td>'+v.c2+'</td><td>'+v.pairs+'</td><td>'+v.promo+'</td><td>'+v.miss+'</td><td>'+(v.pairs?v.promo/v.pairs*100:0).toFixed(1)+'%</td></tr>').join('');
+ $('checks').textContent=tot.checks;$('units').textContent=tot.units;$('promoUnits').textContent=tot.promoUnits;$('eff').textContent=(tot.units?tot.promoUnits/tot.units*100:0).toFixed(1)+'%';
+ $('body').innerHTML=Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([s,v])=>'<tr><td>'+s+'</td><td>'+v.checks+'</td><td>'+v.units+'</td><td>'+v.promoUnits+'</td><td>'+(v.units?v.promoUnits/v.units*100:0).toFixed(1)+'%</td></tr>').join('');
  $('results').classList.remove('hidden');$('msg').innerHTML='<div class="ok">Расчёт выполнен. Проверьте список собственных −30% перед финальным использованием результата.</div>';
  }catch(e){$('msg').innerHTML='<div class="err">'+e.message+'</div>'}
 };
