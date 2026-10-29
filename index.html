@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Levi’s —30% на вторую единицу</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--b:#0b5fff;--bg:#f5f7fb;--c:#fff;--t:#172033;--m:#697386;--bd:#dfe4ec}
+*{box-sizing:border-box}body{margin:0;font:14px Arial,sans-serif;background:var(--bg);color:var(--t)}
+main{max-width:1180px;margin:30px auto;padding:0 18px}h1{font-size:28px;margin:0 0 8px}.sub{color:var(--m);margin-bottom:22px}
+.panel{background:var(--c);border:1px solid var(--bd);border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #00000008}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:700;margin-bottom:7px}
+input[type=file],textarea{width:100%;border:1px solid var(--bd);border-radius:9px;padding:11px;background:white}
+textarea{height:115px;resize:vertical;font-family:monospace}
+button{border:0;border-radius:9px;padding:11px 18px;background:var(--b);color:#fff;font-weight:700;cursor:pointer}
+button.secondary{background:#eef2f8;color:#25324a}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.note{font-size:13px;color:var(--m);line-height:1.45}.err{color:#b42318;font-weight:700;margin-top:10px}.ok{color:#067647;font-weight:700;margin-top:10px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}.card{background:white;border:1px solid var(--bd);border-radius:12px;padding:14px}.card b{font-size:24px;display:block;margin-top:6px}.card span{color:var(--m);font-size:12px}
+table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:12px;background:#f8fafc}
+.wrap{overflow:auto;border:1px solid var(--bd);border-radius:12px}.hidden{display:none}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:1fr 1fr}}
+</style></head>
+<body><main>
+<h1>Levi’s —30% на вторую единицу</h1>
+<div class="sub">Анализ продаж по акции. Excel обрабатывается локально в браузере.</div>
+<div class="panel">
+<div class="grid">
+<div><label>1. Выгрузка продаж Excel</label><input id="file" type="file" accept=".xlsx,.xls"></div>
+<div><label>2. Артикулы с собственной скидкой −30%</label><textarea id="own30" placeholder="По одному артикулу в строке или через запятую"></textarea><div class="note">Эти позиции не считаются получившими −30% именно по акции только из-за размера скидки.</div></div>
+</div>
+<div class="actions"><button id="run">Рассчитать</button><button class="secondary" id="clear">Очистить</button></div>
+<div id="msg"></div>
+</div>
+<div class="panel">
+<b>Правила расчёта</b>
+<div class="note" style="margin-top:8px">SS27 может быть только первой единицей. FW26, R, R-B&amp;T и Tailor могут участвовать как первая или вторая единица. Скидка −30% применяется к более дешёвой подходящей второй единице. Возвраты исключаются из анализа акции. Для нескольких единиц чек разбивается на пары по механике акции. Артикулы с собственной скидкой −30% учитываются отдельно.</div>
+</div>
+<div id="results" class="hidden">
+<div class="cards">
+<div class="card"><span>Чеков с 2+ единицами</span><b id="c2">0</b></div>
+<div class="card"><span>Потенциальных пар</span><b id="pairs">0</b></div>
+<div class="card"><span>Пар с −30% по акции</span><b id="promo">0</b></div>
+<div class="card"><span>Не сработало / проверить</span><b id="miss">0</b></div>
+<div class="card"><span>Эффективность</span><b id="eff">0%</b></div>
+</div>
+<div class="panel"><div class="wrap"><table><thead><tr><th>Магазин</th><th>Чеков 2+</th><th>Потенц. пар</th><th>−30% по акции</th><th>Проверить</th><th>Эффективность</th></tr></thead><tbody id="body"></tbody></table></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id), norm=x=>String(x??'').trim(), num=x=>{if(typeof x==='number')return x;let s=String(x??'').replace(/\s/g,'').replace(',','.');return Number(s)||0};
+const hdr=(o,names)=>{for(const n of names)if(Object.prototype.hasOwnProperty.call(o,n))return n;return null};
+const ownSet=()=>new Set($('own30').value.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean));
+function seasonOK(s){s=norm(s).toUpperCase().replace(/\s+/g,'');return ['FW26','R','R-B&T','R-B&T','TAILOR','SS27'].includes(s)}
+function canSecond(s){s=norm(s).toUpperCase().replace(/\s+/g,'');return s!=='SS27'&&seasonOK(s)}
+function discountPct(r,price,sumDisc,manual,disc){
+ let p=Math.abs(num(r[price])); if(!p)return Math.max(Math.abs(num(r[manual])),Math.abs(num(r[disc])));
+ let sd=Math.abs(num(r[sumDisc])); if(sd)return sd/p*100;
+ return Math.max(Math.abs(num(r[manual])),Math.abs(num(r[disc])));
+}
+$('clear').onclick=()=>{ $('file').value='';$('own30').value='';$('results').classList.add('hidden');$('msg').innerHTML=''};
+$('run').onclick=async()=>{
+ const f=$('file').files[0]; if(!f){$('msg').innerHTML='<div class="err">Выберите Excel-файл.</div>';return}
+ try{
+ const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+ if(!rows.length)throw Error('Файл пустой');
+ const r0=rows[0], store=hdr(r0,['Магазин']), date=hdr(r0,['Дата продажи']), art=hdr(r0,['Артикул']), season=hdr(r0,['Сезон','Сезонная группа']), qty=hdr(r0,['Кол','Количество']), price=hdr(r0,['Цена']), sum=hdr(r0,['Сумма']), sumDisc=hdr(r0,['Сумма скидки']), manual=hdr(r0,['Ручная Скидка']), disc=hdr(r0,['Скидка']);
+ let missing=[]; if(!store)missing.push('Магазин');if(!date)missing.push('Дата продажи');if(!art)missing.push('Артикул');if(!season)missing.push('Сезон');if(!qty)missing.push('Кол/Количество');if(!price&&!sum)missing.push('Цена/Сумма');
+ if(missing.length)throw Error('Не найдены колонки: '+missing.join(', '));
+ const own=ownSet(), checks=new Map();
+ for(const r of rows){let q=num(r[qty]);if(q<=0)continue;let st=norm(r[store]),dt=r[date];if(!st||!dt)continue;let key=st+'|'+String(dt);let arr=checks.get(key)||[];let unitPrice=Math.abs(num(r[price]))||Math.abs(num(r[sum]))/Math.max(1,Math.abs(q));let pct=discountPct(r,price,sumDisc,manual,disc);
+ for(let i=0;i<Math.round(q);i++)arr.push({store:st,season:norm(r[season]),art:norm(r[art]).toLowerCase(),price:unitPrice,pct}); checks.set(key,arr)}
+ let by={},tot={c2:0,pairs:0,promo:0,miss:0};
+ for(const items0 of checks.values()){let items=items0.filter(x=>seasonOK(x.season));if(items.length<2)continue;tot.c2++;let st=items[0].store;by[st]??={c2:0,pairs:0,promo:0,miss:0};by[st].c2++;
+ // Greedy pairing: choose cheapest eligible second, then cheapest valid first priced >= second. SS27 never second.
+ let pool=[...items]; while(pool.length>=2){let seconds=pool.filter(canSecond).sort((a,b)=>a.price-b.price);if(!seconds.length)break;let second=null,first=null;
+ for(const s of seconds){let candidates=pool.filter(x=>x!==s&&x.price>=s.price);if(candidates.length){second=s;first=candidates.sort((a,b)=>a.price-b.price)[0];break}}
+ if(!second)break; pool.splice(pool.indexOf(second),1);pool.splice(pool.indexOf(first),1);tot.pairs++;by[st].pairs++;
+ let own30=own.has(second.art), got30=Math.abs(second.pct-30)<=1.2; if(got30&&!own30){tot.promo++;by[st].promo++}else{tot.miss++;by[st].miss++}
+ }}
+ $('c2').textContent=tot.c2;$('pairs').textContent=tot.pairs;$('promo').textContent=tot.promo;$('miss').textContent=tot.miss;$('eff').textContent=(tot.pairs?tot.promo/tot.pairs*100:0).toFixed(1)+'%';
+ $('body').innerHTML=Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([s,v])=>'<tr><td>'+s+'</td><td>'+v.c2+'</td><td>'+v.pairs+'</td><td>'+v.promo+'</td><td>'+v.miss+'</td><td>'+(v.pairs?v.promo/v.pairs*100:0).toFixed(1)+'%</td></tr>').join('');
+ $('results').classList.remove('hidden');$('msg').innerHTML='<div class="ok">Расчёт выполнен. Проверьте список собственных −30% перед финальным использованием результата.</div>';
+ }catch(e){$('msg').innerHTML='<div class="err">'+e.message+'</div>'}
+};
+</script></main></body></html>
