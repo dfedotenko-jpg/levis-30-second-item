@@ -86,7 +86,7 @@ $('run').onclick=async()=>{
    let st=ch.store; by[st]??={checks:0,units:0,promoUnits:0};
    by[st].checks++; by[st].units+=ch.units; by[st].promoUnits+=ch.promo;
  }
- $('checks').textContent=tot.checks;$('units').textContent=tot.units;$('promoUnits').textContent=tot.promoUnits;$('eff').textContent=(tot.units?tot.promoUnits/tot.units*100:0).toFixed(1)+'%';
+ $('checks').textContent=tot.checks;$('units').textContent=tot.units;$('promoUnits').textContent=tot.promoUnits;$('eff').textContent=(tot.units>tot.promoUnits?tot.promoUnits/(tot.units-tot.promoUnits)*100:(tot.promoUnits?100:0)).toFixed(1)+'%';
  $('body').innerHTML=Object.entries(by).sort((a,b)=>a[0].localeCompare(b[0])).map(([s,v])=>'<tr><td>'+s+'</td><td>'+v.checks+'</td><td>'+v.units+'</td><td>'+v.promoUnits+'</td><td>'+(v.units?v.promoUnits/v.units*100:0).toFixed(1)+'%</td></tr>').join('');
  $('results').classList.remove('hidden');$('msg').innerHTML='<div class="ok">Расчёт выполнен. Проверьте список собственных −30% перед финальным использованием результата.</div>';
  }catch(e){$('msg').innerHTML='<div class="err">'+e.message+'</div>'}
