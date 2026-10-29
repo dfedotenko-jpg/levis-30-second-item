@@ -48,6 +48,11 @@ table{width:100%;border-collapse:collapse;background:white}th,td{padding:9px 8px
 const $=id=>document.getElementById(id), norm=x=>String(x??'').trim(), num=x=>{if(typeof x==='number')return x;let s=String(x??'').replace(/\s/g,'').replace(',','.');return Number(s)||0};
 const hdr=(o,names)=>{for(const n of names)if(Object.prototype.hasOwnProperty.call(o,n))return n;return null};
 const ownSet=()=>new Set($('own30').value.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(Boolean));
+const OWN30_KEY='promo30_excluded_articles';
+const loadOwn30=()=>{try{const v=localStorage.getItem(OWN30_KEY);if(v!==null)$('own30').value=v}catch(e){}};
+const saveOwn30=()=>{try{localStorage.setItem(OWN30_KEY,$('own30').value)}catch(e){}};
+loadOwn30();
+$('own30').addEventListener('input',saveOwn30);
 function seasonOK(s){s=norm(s).toUpperCase().replace(/\s+/g,'');return ['FW26','R','R-B&T','R-B&T','TAILOR','SS27'].includes(s)}
 function canSecond(s){s=norm(s).toUpperCase().replace(/\s+/g,'');return s!=='SS27'&&seasonOK(s)}
 function discountPct(r,price,sumDisc,manual,disc){
@@ -55,7 +60,7 @@ function discountPct(r,price,sumDisc,manual,disc){
  let sd=Math.abs(num(r[sumDisc])); if(sd)return sd/p*100;
  return Math.max(Math.abs(num(r[manual])),Math.abs(num(r[disc])));
 }
-$('clear').onclick=()=>{ $('file').value='';$('own30').value='';$('results').classList.add('hidden');$('msg').innerHTML=''};
+$('clear').onclick=()=>{ $('file').value='';$('results').classList.add('hidden');$('msg').innerHTML=''};
 $('run').onclick=async()=>{
  const f=$('file').files[0]; if(!f){$('msg').innerHTML='<div class="err">Выберите Excel-файл.</div>';return}
  try{
